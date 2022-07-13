@@ -41,14 +41,14 @@ class Fulfilment{
     getDataOrders(){
         const orders = this?.data?.orders || [];
         if(this.isArr(orders))
-            return this?.data?.orders || [];
+            return orders;
         return null;
     }
     getRetOrders(){
         const orders = this?.retData?.orders || [];
         console.log("Rttt", orders)
         if(this.isArr(orders))
-            return this?.retData?.orders || [];
+            return orders;
         return null;
     }
 
@@ -77,12 +77,23 @@ class Fulfilment{
     getDataProducts(){
         const products = this?.data?.products || [];
         if(this.isArr(products))
-            return this?.data?.products || [];
+            return products
+        return null;
+    }
+    getRetProducts(){
+        const products = this?.retData?.products || [];
+        if(this.isArr(products))
+            return products;
         return null;
     }
 
-    getProduct(item){
-        const dataProducts = this.getDataProducts();
+    getProduct(item, ret){
+        let dataProducts;
+        if(ret)
+            dataProducts = this.getRetProducts();
+        else
+            dataProducts = this.getDataProducts();
+
         if(this.isArr(dataProducts)){
             const product = dataProducts.find((prod)=> {
                 // console.log('item', JSON.stringify(item))
@@ -100,19 +111,6 @@ class Fulfilment{
         }
         return null;
     }
-
-    // getOrder(order, orders){
-    //     console.log("ordes", orders)
-    //     const ordersArr = this.getOrders(orders);
-    //     const retOrder = ordersArr.find((ord)=>{
-    //         return ord.orderId === order.orderId;
-    //     });
-
-    //     if(retOrder)
-    //         return retOrder
-
-    //     return null;
-    // }
 
     processOrders(ordersToProcess){
         if(this.isArr(ordersToProcess)){
@@ -139,29 +137,31 @@ class Fulfilment{
                                 purchaseOrder.create();
                                 purchaseOrder.send();
                             }
-                            
-
                         }
                         else
                             itemsThatCantFulfilled.push(item);
                     });
 
-                    // const retOrder = this.getRetOrders.find((ord)=>{
-                    //     return ord.orderId === order.orderId;
-                    // });
+                    const retOrder = this.getRetOrders().find((ord)=>{
+                        return ord.orderId === order.orderId;
+                    });
                     if(items.length === itemsThatCanBeFulfilled.length) {
                         // console.log(`Order ${order.orderId} is fulfilled`, items);
 
-                        
-                        //update stock
-                        // console.log("ORDER!!!", retOrder)
-        
+                        //update Quantity
+                        itemsThatCanBeFulfilled.forEach((item)=>{
+                            const retProduct = this.getProduct(item,true);
+                            retProduct.quantityOnHand = retProduct.quantityOnHand - item.quantity;
+                        });
+
                         //update status
+                        retOrder.status = "Fulfilled";
                     } else {
                         // console.log(`Order ${order.orderId} cannot be fulfilled`, items);
         
                         //update status
                         ordersThatCannotBeFulfilled.push(order.orderId);
+                        retOrder.status = "Unfulfillable";
                     }
                 }
             });
@@ -170,6 +170,8 @@ class Fulfilment{
             console.log("");
             console.log('\x1b[41m', "Unfulfillable Orders", JSON.stringify(ordersThatCannotBeFulfilled), "\x1b[0m");
             console.log("");
+            console.log(JSON.stringify(this.data, null, 2))
+            console.log(JSON.stringify(this.retData, null, 2))
             return ordersThatCannotBeFulfilled || [];
         } else {
             return console.log("Please submit an array of orders");
