@@ -1,24 +1,26 @@
 const fs = require('fs');
 const args = process.argv.slice(2);
+const arr = args[1] ? args[1].split(",") : null;
 const obj = JSON.parse(fs.readFileSync('./' + args[0], 'utf8'));
-const arr = args[1].split(",");
 
 class PurchaseOrder{
     constructor(product){
         this.data = product;
+        this.orderNumber = null;
+        this.product = null;
     }
 
     create(){
-        const product = this.data;
-        const orderNumber = Math.floor(Math.random()*90000) + 10000;
-        delete product.reorderThreshold;
-        delete product.quantityOnHand;
-        this.purchaseOrder = {orderNumber, ...product};
-        console.log("Created Purchase Order (", "\x1b[32m", orderNumber , "):", JSON.stringify(this.purchaseOrder, null, 2));
+        this.product = this.data;
+        this.orderNumber = Math.floor(Math.random()*90000) + 10000;
+        delete this.product.reorderThreshold;
+        delete this.product.quantityOnHand;
+        this.purchaseOrder = {orderNumber: this.orderNumber, ...this.product};
+        // console.log("Created Purchase Order (", "\x1b[32m", this.orderNumber , "):", JSON.stringify(this.purchaseOrder, null, 2));
     }
 
     send(){
-        console.log("Sending Purchase Order (", "\x1b[32m", this.purchaseOrder.orderNumber,"\x1b[0m", ").....");
+        console.log("Sending Purchase Order (", "\x1b[32m", this.purchaseOrder.orderNumber,"\x1b[0m", "): ", JSON.stringify(this.purchaseOrder, null, 2));
         console.log("");
 
     }
@@ -29,7 +31,6 @@ class PurchaseOrder{
 class Fulfilment{
     constructor(obj){
         this.data = obj;
-        this.retData = { ...obj };
     }
 
     isArr(array){
@@ -44,20 +45,12 @@ class Fulfilment{
             return orders;
         return null;
     }
-    getRetOrders(){
-        const orders = this?.retData?.orders || [];
-        console.log("Rttt", orders)
-        if(this.isArr(orders))
-            return orders;
-        return null;
-    }
 
     getOrders(orders){
         const retOrders = [];
+        const dataOrders = this.getDataOrders();
         if(this.isArr(orders)){
-            const dataOrders = this.getDataOrders();
             if(dataOrders){
-
                 orders.forEach((order)=>{
                     const orderMatch = dataOrders.find((dataOrder)=>{
                         return dataOrder.orderId === parseInt(order);
@@ -68,31 +61,25 @@ class Fulfilment{
                     }
                 });
             }
+        } else {
+            if(dataOrders){
+                retOrders.push(...dataOrders);
+            }
         }
         if(this.isArr(retOrders))
             return retOrders;
         return null;
     }
 
-    getDataProducts(){
+    getProducts(){
         const products = this?.data?.products || [];
         if(this.isArr(products))
             return products
         return null;
     }
-    getRetProducts(){
-        const products = this?.retData?.products || [];
-        if(this.isArr(products))
-            return products;
-        return null;
-    }
 
-    getProduct(item, ret){
-        let dataProducts;
-        if(ret)
-            dataProducts = this.getRetProducts();
-        else
-            dataProducts = this.getDataProducts();
+    getProduct(item){
+        const dataProducts = this.getProducts();
 
         if(this.isArr(dataProducts)){
             const product = dataProducts.find((prod)=> {
@@ -113,76 +100,93 @@ class Fulfilment{
     }
 
     processOrders(ordersToProcess){
+        const ordersThatCannotBeFulfilled = [];
+        const purchaseOrdersCreated = [];
+        let orders;
+
         if(this.isArr(ordersToProcess)){
-            const orders =this.getOrders(ordersToProcess);
-            const ordersThatCannotBeFulfilled = [];
+            orders =this.getOrders(ordersToProcess);
             // console.log("Orders", JSON.stringify(orders));
+        } else {
+            orders =this.getOrders();
+        }
 
  //2. (b) If an order cannot be fulfilled due to low stock levels, it should not be fulfilled.
-            orders.forEach((order)=>{
-                const items = this.getItems(order);
-                // console.log("Items", JSON.stringify(items));
-                if(items){
-                    const itemsThatCanBeFulfilled = [];
-                    const itemsThatCantFulfilled = [];
+        orders.forEach((order)=>{
+            const items = this.getItems(order);
+            // console.log("Items", JSON.stringify(items));
+            if(items){
+                const itemsThatCanBeFulfilled = [];
+                const itemsThatCantFulfilled = [];
 
-                    items.forEach((item)=>{
-                        const product = this.getProduct(item);
-                        if(item.quantity < product.quantityOnHand){
-                            itemsThatCanBeFulfilled.push(item);
-                            //create purchase orders
-                            if(item.quantity < product.reorderThreshold){
-                                const purchaseOrder = new PurchaseOrder({...product});
+                items.forEach((item)=>{
+                    const product = this.getProduct(item);
+                    if(item.quantity <= product.quantityOnHand){
+                        itemsThatCanBeFulfilled.push(item);
+                        //create purchase orders
+                        if((product.quantityOnHand - item.quantity) < product.reorderThreshold){
 
-                                purchaseOrder.create();
+                            const purchaseOrder = new PurchaseOrder({...product});
+                            purchaseOrder.create();
+                            if(!purchaseOrdersCreated.find((order)=>{
+                                return order.product.productId === purchaseOrder.product.productId
+                            })) {
+                                purchaseOrdersCreated.push(purchaseOrder);
                                 purchaseOrder.send();
                             }
                         }
-                        else
-                            itemsThatCantFulfilled.push(item);
-                    });
-
-                    const retOrder = this.getRetOrders().find((ord)=>{
-                        return ord.orderId === order.orderId;
-                    });
-                    if(items.length === itemsThatCanBeFulfilled.length) {
-                        // console.log(`Order ${order.orderId} is fulfilled`, items);
-
-                        //update Quantity
-                        itemsThatCanBeFulfilled.forEach((item)=>{
-                            const retProduct = this.getProduct(item,true);
-                            retProduct.quantityOnHand = retProduct.quantityOnHand - item.quantity;
-                        });
-
-                        //update status
-                        retOrder.status = "Fulfilled";
-                    } else {
-                        // console.log(`Order ${order.orderId} cannot be fulfilled`, items);
-        
-                        //update status
-                        ordersThatCannotBeFulfilled.push(order.orderId);
-                        retOrder.status = "Unfulfillable";
                     }
-                }
-            });
+                    else
+                        itemsThatCantFulfilled.push(item);
+                });
 
- //2. (c) It should return an array of order ids that were unfulfillable.
-            console.log("");
-            console.log('\x1b[41m', "Unfulfillable Orders", JSON.stringify(ordersThatCannotBeFulfilled), "\x1b[0m");
-            console.log("");
-            console.log(JSON.stringify(this.data, null, 2))
-            console.log(JSON.stringify(this.retData, null, 2))
-            return ordersThatCannotBeFulfilled || [];
-        } else {
-            return console.log("Please submit an array of orders");
-        }
+                const retOrder = this.getOrders().find((ord)=>{
+                    return ord.orderId === order.orderId;
+                });
+
+                if(items.length === itemsThatCanBeFulfilled.length) {
+                    // console.log(`Order ${order.orderId} is fulfilled`, items);
+
+                    //update Quantity
+                    itemsThatCanBeFulfilled.forEach((item)=>{
+                        const product = this.getProduct(item);
+                        product.quantityOnHand = product.quantityOnHand - item.quantity;
+                    });
+
+                    //update status
+                    retOrder.status = "Fulfilled";
+                } else {
+                    // console.log(`Order ${order.orderId} cannot be fulfilled`, items);
+        
+                    //update status
+                    ordersThatCannotBeFulfilled.push(order.orderId);
+                    retOrder.status = "Unfulfillable";
+                }
+            }
+        });
+
+ //2. (c) It should return an array of order ids that were unfulfillable
+        fs.writeFile("data " + Date.now() + ".json", JSON.stringify(this.data,null,2), (err) => {
+            if (err) console.error(error);
+            console.log('File is created successfully.');
+        })
+
+        console.log("");
+        console.log('\x1b[41m', "Unfulfillable Orders", JSON.stringify(ordersThatCannotBeFulfilled), "\x1b[0m");
+        console.log("");
+
+        return ordersThatCannotBeFulfilled || [];
     }
 }
 
-const fulfillment = new Fulfilment(obj);
+if(obj)
+    fulfillment = new Fulfilment(obj);
 
 //2. Provide a clear entry point into the order-fulfilment code, e.g. a method named processOrders()
 //2. (a) It will accept an array of Order IDs to process orders for fulfilment and shipping.
-fulfillment.processOrders(arr);
+if(Array.isArray(arr) && (arr.length > 0))
+    fulfillment.processOrders(arr);
+else
+    fulfillment.processOrders();
 
 
