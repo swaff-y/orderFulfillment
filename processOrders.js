@@ -7,15 +7,13 @@ class PurchaseOrder{
     constructor(product){
         this.data = product;
         this.orderNumber = null;
-        this.product = null;
     }
 
     create(){
-        this.product = this.data;
         this.orderNumber = Math.floor(Math.random()*90000) + 10000;
-        delete this.product.reorderThreshold;
-        delete this.product.quantityOnHand;
-        this.purchaseOrder = {orderNumber: this.orderNumber, ...this.product};
+        delete this.data.reorderThreshold;
+        delete this.data.quantityOnHand;
+        this.purchaseOrder = {orderNumber: this.orderNumber, ...this.data};
         // console.log("Created Purchase Order (", "\x1b[32m", this.orderNumber , "):", JSON.stringify(this.purchaseOrder, null, 2));
     }
 
@@ -39,16 +37,9 @@ class Fulfilment{
         return null;
     }
 
-    getDataOrders(){
-        const orders = this?.data?.orders || [];
-        if(this.isArr(orders))
-            return orders;
-        return null;
-    }
-
     getOrders(orders){
         const retOrders = [];
-        const dataOrders = this.getDataOrders();
+        const dataOrders = this?.data?.orders || [];
         if(this.isArr(orders)){
             if(dataOrders){
                 orders.forEach((order)=>{
@@ -129,7 +120,7 @@ class Fulfilment{
                             const purchaseOrder = new PurchaseOrder({...product});
                             purchaseOrder.create();
                             if(!purchaseOrdersCreated.find((order)=>{
-                                return order.product.productId === purchaseOrder.product.productId
+                                return order.data.productId === purchaseOrder.data.productId
                             })) {
                                 purchaseOrdersCreated.push(purchaseOrder);
                                 purchaseOrder.send();
