@@ -8,67 +8,133 @@ class Purchase_order
         @data = product
     end
 
+    def data
+        @data
+    end
+
     def create
-        @order_number = rand(10 ** 10)
+        @order_number = rand(5 ** 6)
         @purchase_order = { "orderNumber" => @order_number, **@data }
         return @purchase_order
     end
 
     def send
-        puts "Sending..."
+        puts "\x1b[42m Sending purchase order \x1b[0m ( \x1b[33m #{@purchase_order['orderNumber']} \x1b[0m ): {"
+        puts "\t\"orderNumber\": #{@purchase_order['orderNumber']}" 
+        puts "\t\"productId\": #{@purchase_order['productId']}" 
+        puts "\t\"description\": #{@purchase_order['description']}" 
+        puts "\t\"reorderAmount\": #{@purchase_order['reorderAmount']}"
+        puts "}"
     end
 end
 
 class Fulfilment
     def initialize(hash)
         @data = hash
-    end
+    end #initialize
 
     def get_orders(orders)
         ret_orders = []
         data_orders = @data['orders']
         # return @data['orders']
-        if orders
-            orders.each do |order| 
-                order_match = data_orders.find do |data_order|
-                    data_order['orderId'] == Integer(order)
-                end
-                if order_match
-                    ret_orders.push(order_match)
-                end
-            end
-        else
-            ret_orders = data_orders
-        end
+        orders.each do |order| 
+            order_match = data_orders.find do |data_order|
+                data_order['orderId'] == Integer(order)
+            end #data_orders_find
+            if order_match
+                ret_orders.push(order_match)
+            end #if order_match
+        end #orders.each
         return ret_orders
-    end
+    end #get_orders
 
     def get_products
         return @data['products'];
-    end
+    end #get_products
 
     def get_product(item)
         product = get_products.find do |prod|
             prod['productId'] === item['productId']
-        end
-
+        end #get_products.find
         return product
-    end
+    end #get_product
 
     def get_items(order)
-        return order[0]['items']
-    end
+        return order['items']
+    end #get_items
 
     def process_orders(orders_to_process)
+        orders_that_cannot_be_fulfiled = []
+        purchase_orders_created = []
 
-    end
+        orders = get_orders(orders_to_process)
+
+        orders.each do |order|
+            items = get_items(order)
+            if items
+                items_that_can_be_fulfilled = []
+                items_that_cant_be_fulfilled = []
+
+                items.each do |item|
+                    product = get_product(item)
+                    if item['quantity'] <= product['quantityOnHand']
+                        items_that_can_be_fulfilled.push(item)
+                        #Create purchase orders
+                        if (product['quantityOnHand'] - item['quantity']) < product['reorderThreshold']
+                            purchase_order = Purchase_order.new({ **product })
+                            purchase_order.create
+                            po_data = purchase_order::data
+                            
+                            # puts purchase_order::data['productId']
+                            created_po = purchase_orders_created.find do |order|
+                                order::data['productId'] == purchase_order::data['productId']
+                            end
+
+                            if !created_po
+                                purchase_orders_created.push(purchase_order)
+                                purchase_order.send
+                            end
+                        end
+                    else
+                        items_that_cant_be_fulfilled.push(item)
+                    end
+                end #items.each
+
+                ret_order = @data['orders'].find do |ord|
+                    ord['orderId'] == order['orderId']
+                end
+
+                if items.length == items_that_can_be_fulfilled.length
+                    items_that_can_be_fulfilled.each do |item|
+                        product = get_product(item)
+                        product['quantityOnHand'] = (product['quantityOnHand'] - item['quantity'])
+                    end
+
+                    ret_order['status'] = "Fulfilled";
+                else
+                    #update status
+                    orders_that_cannot_be_fulfiled.push(order['orderId'])
+                    ret_order['status'] = "Unfulfillable"
+                end
+            end #if items
+        end #orders.each
+
+        puts ""
+        puts "\x1b[41m Unfillable Orders #{orders_that_cannot_be_fulfiled} \x1b[0m"
+
+        File.write('./data ' + (Time.now.to_f * 1000).to_i.to_s  + " - rb.json", JSON.dump(@data))
+        puts "File is created successfully"
+
+        return orders_that_cannot_be_fulfiled
+    end #process_orders
+
 end
 
 fulfilment = Fulfilment.new(data_hash)
 purchase_order = Purchase_order.new({"productId"=>1, "description"=>"Small Widget","quantityOnHand"=>50})
 
-# puts fulfilment.get_product({"productId"=>"1123"})
-puts purchase_order.create
-purchase_order.send
+fulfilment.process_orders([1122,1123])
+# puts purchase_order.create
+# purchase_order.send
 
 # puts data_hash['orders'][0]['items']
