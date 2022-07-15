@@ -1,7 +1,14 @@
 require 'json'
 
-file = File.read('./data.json')
-data_hash = JSON.parse(file)
+#read file contents
+if ARGV[0]
+    file = File.read("./#{ARGV[0]}")
+    data_hash = JSON.parse(file)
+else
+    puts "A data file is required"
+    return
+end
+
 
 class Purchase_order
     def initialize(product)
@@ -13,7 +20,7 @@ class Purchase_order
     end
 
     def create
-        @order_number = rand(5 ** 6)
+        @order_number = rand(10 ** 10)
         @purchase_order = { "orderNumber" => @order_number, **@data }
         return @purchase_order
     end
@@ -35,6 +42,9 @@ class Fulfilment
 
     def get_orders(orders)
         ret_orders = []
+        if orders.length == 0
+            return @data['orders']
+        end
         data_orders = @data['orders']
         # return @data['orders']
         orders.each do |order| 
@@ -122,7 +132,7 @@ class Fulfilment
         puts ""
         puts "\x1b[41m Unfillable Orders #{orders_that_cannot_be_fulfiled} \x1b[0m"
 
-        File.write('./data ' + (Time.now.to_f * 1000).to_i.to_s  + " - rb.json", JSON.dump(@data))
+        File.write('./data_' + (Time.now.to_f * 1000).to_i.to_s  + "_rb.json", JSON.dump(@data))
         puts "File is created successfully"
 
         return orders_that_cannot_be_fulfiled
@@ -131,10 +141,8 @@ class Fulfilment
 end
 
 fulfilment = Fulfilment.new(data_hash)
-purchase_order = Purchase_order.new({"productId"=>1, "description"=>"Small Widget","quantityOnHand"=>50})
-
-fulfilment.process_orders([1122,1123])
-# puts purchase_order.create
-# purchase_order.send
-
-# puts data_hash['orders'][0]['items']
+if(ARGV[1])
+    fulfilment.process_orders(ARGV[1].split(","))
+else
+    fulfilment.process_orders([])
+end

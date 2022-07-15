@@ -157,7 +157,7 @@ class Fulfilment{
         });
 
  //2. (c) It should return an array of order ids that were unfulfillable
-        fs.writeFile("data " + Date.now() + " - js.json", JSON.stringify(this.data,null,2), (err) => {
+        fs.writeFile("data_" + Date.now() + "_js.json", JSON.stringify(this.data,null,2), (err) => {
             if (err) console.error(error);
             console.log('File is created successfully.');
         })
