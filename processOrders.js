@@ -18,7 +18,7 @@ class PurchaseOrder{
     }
 
     send(){
-        console.log("Sending Purchase Order (", "\x1b[32m", this.purchaseOrder.orderNumber,"\x1b[0m", "): ", JSON.stringify(this.purchaseOrder, null, 2));
+        console.log("\x1b[42m", "Sending Purchase Order", "\x1b[0m", "(", "\x1b[32m", this.purchaseOrder.orderNumber,"\x1b[0m", "): ", JSON.stringify(this.purchaseOrder, null, 2));
         console.log("");
 
     }
@@ -157,7 +157,7 @@ class Fulfilment{
         });
 
  //2. (c) It should return an array of order ids that were unfulfillable
-        fs.writeFile("data " + Date.now() + ".json", JSON.stringify(this.data,null,2), (err) => {
+        fs.writeFile("data " + Date.now() + " - js.json", JSON.stringify(this.data,null,2), (err) => {
             if (err) console.error(error);
             console.log('File is created successfully.');
         })
