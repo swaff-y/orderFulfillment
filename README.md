@@ -13,7 +13,7 @@ This is an order fulfillment program written in Javascript and Ruby. Both versio
 2. Process a list of orders (the order matters)
 
     `node processOrders.js data.json "1125,1124"`
-3. Process the whole list of ordes
+3. Process the whole list of orders
 
     `node processOrders.js data.json`
 
@@ -25,7 +25,7 @@ This is an order fulfillment program written in Javascript and Ruby. Both versio
 2. Process a list of orders (the order matters)
 
     `ruby processOrders.rb data.json "1125,1124"`
-3. Process the whole list of ordes
+3. Process the whole list of orders
 
     `ruby processOrders.rb data.json`
 
