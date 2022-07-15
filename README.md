@@ -1,7 +1,7 @@
 # Order Fulfillment
 
 ## Description
-This is an order fulfillment program written in Javascript and ruby. Both versions ahve the same behaviour. Both programs can be run from the command line and require that you have ruby and node installed on the machine it is being run on.
+This is an order fulfillment program written in Javascript and Ruby. Both versions ahve the same behaviour. Both programs can be run from the command line and require that you have ruby and node installed on the machine it is being run on.
 
 ## Instructions for use
 
